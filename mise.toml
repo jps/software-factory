@@ -1,0 +1,62 @@
+[tools]
+node = "22"
+pnpm = "10"
+terraform = "1.14"
+
+[env]
+AWS_REGION = "us-east-1"
+NODE_OPTIONS = "--enable-source-maps"
+TF_IN_AUTOMATION = "false"
+
+[tasks.install]
+description = "Install all monorepo dependencies with pnpm"
+run = "pnpm install"
+
+[tasks.build]
+description = "Build all TypeScript packages and bundle Lambda artifacts"
+depends = ["install"]
+run = "pnpm -r run build"
+
+[tasks.typecheck]
+description = "Run TypeScript type checking across all workspace packages"
+run = "pnpm -r run typecheck"
+
+[tasks.test]
+description = "Run unit and local durable execution workflow tests"
+run = "pnpm -r run test"
+
+[tasks."factory:simulate"]
+description = "Simulate a full Software Factory durable workflow run locally"
+run = "pnpm --filter @software-factory/orchestrator run simulate"
+
+[tasks."tf:init"]
+description = "Initialize Terraform in infra/ (backend disabled for local validation)"
+dir = "infra"
+run = "terraform init -backend=false"
+
+[tasks."tf:fmt"]
+description = "Format all Terraform HCL files"
+dir = "infra"
+run = "terraform fmt -recursive"
+
+[tasks."tf:validate"]
+description = "Validate Terraform configuration"
+dir = "infra"
+depends = ["build", "tf:init"]
+run = "terraform validate"
+
+[tasks."tf:plan"]
+description = "Run Terraform plan for the Software Factory infrastructure"
+dir = "infra"
+depends = ["build"]
+run = "terraform plan"
+
+[tasks."tf:apply"]
+description = "Deploy the Software Factory infrastructure to AWS"
+dir = "infra"
+depends = ["build"]
+run = "terraform apply"
+
+[tasks.check]
+description = "Run all code & infrastructure checks (typecheck, test, tf:fmt)"
+depends = ["typecheck", "test", "tf:fmt"]

@@ -1,0 +1,11 @@
+[tasks.build]
+description = "Build and bundle AgentCore Harness tools"
+run = "pnpm run build"
+
+[tasks.typecheck]
+description = "Typecheck @software-factory/tools"
+run = "pnpm run typecheck"
+
+[tasks.test]
+description = "Run unit tests for AgentCore Harness tools"
+run = "pnpm run test"

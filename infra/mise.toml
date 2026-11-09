@@ -1,0 +1,12 @@
+[tasks.fmt]
+description = "Format Terraform HCL files"
+run = "terraform fmt -recursive"
+
+[tasks.init]
+description = "Initialize Terraform providers and modules"
+run = "terraform init -backend=false"
+
+[tasks.validate]
+description = "Validate Terraform configuration"
+depends = ["init"]
+run = "terraform validate"

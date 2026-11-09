@@ -1,0 +1,15 @@
+[tasks.build]
+description = "Build and bundle the Durable Function orchestrator"
+run = "pnpm run build"
+
+[tasks.typecheck]
+description = "Typecheck @software-factory/orchestrator"
+run = "pnpm run typecheck"
+
+[tasks.test]
+description = "Run durable workflow tests"
+run = "pnpm run test"
+
+[tasks.simulate]
+description = "Simulate a Software Factory durable workflow run locally"
+run = "pnpm run simulate"
