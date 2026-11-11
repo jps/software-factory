@@ -1,0 +1,11 @@
+[tasks.build]
+description = "Compile @software-factory/core"
+run = "pnpm run build"
+
+[tasks.typecheck]
+description = "Typecheck @software-factory/core"
+run = "pnpm run typecheck"
+
+[tasks.test]
+description = "Run unit tests for @software-factory/core"
+run = "pnpm run test"

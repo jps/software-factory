@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/ crash.*.log
+**/*.tfvars
+!**/terraform.tfvars.example
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Packaged Lambda bundles
+*.zip
+
+# Environment & OS
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage/
+.mise.local.toml

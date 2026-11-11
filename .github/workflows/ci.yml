@@ -1,0 +1,96 @@
+name: CI — Build, Integration Tests & Terraform Plan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  AWS_REGION: eu-west-2
+  AWS_DEFAULT_REGION: eu-west-2
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  validate-and-test:
+    name: Build, Integration Tests & Terraform Plan (eu-west-2)
+    runs-on: ubuntu-latest
+
+    services:
+      localstack:
+        image: localstack/localstack:3
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: s3,dynamodb,sts,iam
+          DEFAULT_REGION: eu-west-2
+        options: >-
+          --health-cmd="curl -sf http://localhost:4566/_localstack/health || exit 1"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Mise & Monorepo Tools (Node, pnpm, Terraform)
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+
+      - name: Install pnpm workspace dependencies
+        run: mise run install
+
+      - name: Typecheck & Build packages + Lambda bundles (.zip)
+        run: |
+          mise run typecheck
+          mise run build
+
+      - name: Run Unit & AWS S3/DynamoDB Integration Tests (LocalStack eu-west-2)
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_REGION: eu-west-2
+          AWS_ENDPOINT_URL: http://localhost:4566
+          ARTIFACTS_BUCKET: software-factory-ci-artifacts
+          STATE_TABLE_NAME: software-factory-ci-runs
+        run: mise run test:integration
+
+      - name: Run Durable Workflow Simulation
+        run: mise run factory:simulate
+
+      - name: Check Terraform Formatting & Validate HCL
+        run: |
+          mise run tf:fmt:check
+          mise run tf:validate
+
+      - name: Configure AWS Credentials (OIDC when AWS_ROLE_ARN is set)
+        if: ${{ vars.AWS_ROLE_ARN != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      - name: Run Terraform Plan (Live AWS OIDC)
+        if: ${{ vars.AWS_ROLE_ARN != '' }}
+        working-directory: infra
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Run Terraform Plan (LocalStack STS fallback when AWS_ROLE_ARN is unset)
+        if: ${{ vars.AWS_ROLE_ARN == '' }}
+        working-directory: infra
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_REGION: eu-west-2
+          AWS_ENDPOINT_URL_STS: http://localhost:4566
+          AWS_EC2_METADATA_DISABLED: "true"
+        run: terraform plan -input=false -out=tfplan

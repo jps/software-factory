@@ -1,0 +1,7 @@
+project_name                      = "software-factory"
+environment                       = "dev"
+aws_region                        = "eu-west-2"
+foundation_model_id               = "anthropic.claude-sonnet-4-20250514"
+memory_event_expiry_days          = 30
+durable_execution_timeout_seconds = 900
+durable_retention_days            = 7
