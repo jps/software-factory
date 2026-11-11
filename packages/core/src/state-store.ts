@@ -1,7 +1,14 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
-  PutObjectCommand,
+  CreateTableCommand,
+  DescribeTableCommand,
+  DynamoDBClient,
+} from "@aws-sdk/client-dynamodb";
+import {
+  type BucketLocationConstraint,
+  CreateBucketCommand,
   GetObjectCommand,
+  HeadBucketCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import {
@@ -91,8 +98,10 @@ export class AwsFactoryStateStore implements FactoryStateStore {
     tableName?: string;
     bucketName?: string;
     region?: string;
+    endpoint?: string;
   }) {
     const region = options?.region ?? process.env.AWS_REGION ?? "eu-west-2";
+    const endpoint = options?.endpoint ?? process.env.AWS_ENDPOINT_URL;
     this.tableName =
       options?.tableName ??
       process.env.STATE_TABLE_NAME ??
@@ -102,10 +111,19 @@ export class AwsFactoryStateStore implements FactoryStateStore {
       process.env.ARTIFACTS_BUCKET ??
       "software-factory-artifacts";
 
-    this.ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region }), {
-      marshallOptions: { removeUndefinedValues: true },
+    this.ddb = DynamoDBDocumentClient.from(
+      new DynamoDBClient({
+        region,
+        ...(endpoint ? { endpoint } : {}),
+      }),
+      {
+        marshallOptions: { removeUndefinedValues: true },
+      },
+    );
+    this.s3 = new S3Client({
+      region,
+      ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
     });
-    this.s3 = new S3Client({ region });
   }
 
   async saveRun(record: FactoryRunRecord): Promise<void> {
@@ -170,5 +188,51 @@ export class AwsFactoryStateStore implements FactoryStateStore {
     if (!out.Body) return undefined;
     const text = await out.Body.transformToString();
     return JSON.parse(text) as T;
+  }
+
+  /**
+   * Provisions the S3 bucket and DynamoDB table when running against LocalStack
+   * or an ephemeral integration test environment.
+   */
+  async ensureStorageResources(): Promise<void> {
+    const region = process.env.AWS_REGION ?? "eu-west-2";
+    try {
+      await this.s3.send(new HeadBucketCommand({ Bucket: this.bucketName }));
+    } catch {
+      await this.s3.send(
+        new CreateBucketCommand({
+          Bucket: this.bucketName,
+          ...(region !== "us-east-1"
+            ? {
+                CreateBucketConfiguration: {
+                  LocationConstraint: region as BucketLocationConstraint,
+                },
+              }
+            : {}),
+        }),
+      );
+    }
+
+    const rawDdb = new DynamoDBClient({
+      region,
+      ...(process.env.AWS_ENDPOINT_URL
+        ? { endpoint: process.env.AWS_ENDPOINT_URL }
+        : {}),
+    });
+
+    try {
+      await rawDdb.send(
+        new DescribeTableCommand({ TableName: this.tableName }),
+      );
+    } catch {
+      await rawDdb.send(
+        new CreateTableCommand({
+          TableName: this.tableName,
+          BillingMode: "PAY_PER_REQUEST",
+          AttributeDefinitions: [{ AttributeName: "runId", AttributeType: "S" }],
+          KeySchema: [{ AttributeName: "runId", KeyType: "HASH" }],
+        }),
+      );
+    }
   }
 }

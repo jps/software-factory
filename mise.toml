@@ -25,6 +25,10 @@ run = "pnpm -r run typecheck"
 description = "Run unit and local durable execution workflow tests"
 run = "pnpm -r run test"
 
+[tasks."test:integration"]
+description = "Run AWS S3 + DynamoDB integration tests (requires AWS_ENDPOINT_URL or LocalStack)"
+run = "pnpm -r run test"
+
 [tasks."factory:simulate"]
 description = "Simulate a full Software Factory durable workflow run locally"
 run = "pnpm --filter @software-factory/orchestrator run simulate"
@@ -38,6 +42,11 @@ run = "terraform init -backend=false"
 description = "Format all Terraform HCL files"
 dir = "infra"
 run = "terraform fmt -recursive"
+
+[tasks."tf:fmt:check"]
+description = "Check Terraform HCL formatting"
+dir = "infra"
+run = "terraform fmt -check -recursive"
 
 [tasks."tf:validate"]
 description = "Validate Terraform configuration"
