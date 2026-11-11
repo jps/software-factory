@@ -13,7 +13,7 @@ variable "environment" {
 variable "aws_region" {
   description = "AWS region supporting Bedrock AgentCore Harness and Lambda Durable Functions"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-2"
 }
 
 variable "foundation_model_id" {
